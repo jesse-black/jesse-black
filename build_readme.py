@@ -25,14 +25,23 @@ BLOG_LIMIT = 5
 RELEASE_LIMIT = 5
 EXCLUDED_BLOG_RELEASE_REPO = "jesseblack.net"
 EXCLUDED_BLOG_RELEASE_TAG_PREFIX = "post/"
+DESCRIPTION_LIMIT = 240
 
 
 @dataclass(frozen=True)
-class LinkItem:
+class BlogPost:
     title: str
     url: str
     published: dt.datetime
-    source: str | None = None
+    description: str | None = None
+
+
+@dataclass(frozen=True)
+class Release:
+    repo: str
+    version: str
+    url: str
+    published: dt.datetime
 
 
 def utc_now() -> dt.datetime:
@@ -70,21 +79,23 @@ def fetch_url(url: str, *, headers: dict[str, str] | None = None) -> bytes:
         return response.read()
 
 
-def fetch_blog_posts() -> list[LinkItem]:
+def fetch_blog_posts() -> list[BlogPost]:
     document = ET.fromstring(fetch_url(BLOG_FEED_URL))
-    posts: list[LinkItem] = []
+    posts: list[BlogPost] = []
 
     for item in document.findall("./channel/item"):
         title = text_of(item, "title")
         link = text_of(item, "link")
         published = text_of(item, "pubDate")
+        description = summarize_description(text_of(item, "description"))
         if not title or not link:
             continue
         posts.append(
-            LinkItem(
+            BlogPost(
                 title=html.unescape(title),
                 url=link,
                 published=parse_datetime(published),
+                description=description,
             )
         )
 
@@ -96,6 +107,14 @@ def text_of(element: ET.Element, tag: str) -> str:
     if child is None or child.text is None:
         return ""
     return child.text.strip()
+
+
+def summarize_description(value: str) -> str:
+    description = re.sub(r"<[^>]+>", " ", html.unescape(value))
+    description = re.sub(r"\s+", " ", description).strip()
+    if len(description) <= DESCRIPTION_LIMIT:
+        return description
+    return description[: DESCRIPTION_LIMIT - 1].rsplit(" ", 1)[0] + "..."
 
 
 def github_graphql(query: str, variables: dict[str, object]) -> dict[str, object]:
@@ -127,7 +146,7 @@ def github_graphql(query: str, variables: dict[str, object]) -> dict[str, object
     return data["data"]
 
 
-def fetch_releases() -> list[LinkItem]:
+def fetch_releases() -> list[Release]:
     query = """
     query LatestReleases($login: String!, $after: String) {
       user(login: $login) {
@@ -157,7 +176,7 @@ def fetch_releases() -> list[LinkItem]:
       }
     }
     """
-    releases: list[LinkItem] = []
+    releases: list[Release] = []
     cursor: str | None = None
 
     while True:
@@ -168,14 +187,16 @@ def fetch_releases() -> list[LinkItem]:
             for release in repo["releases"]["nodes"]:
                 if is_blog_release(repo_name, release.get("tagName") or ""):
                     continue
-                title = release.get("name") or release.get("tagName") or repo_name
+                version = release.get("tagName") or release.get("name")
+                if not version:
+                    continue
                 published = parse_datetime(release.get("publishedAt"))
                 releases.append(
-                    LinkItem(
-                        title=title,
+                    Release(
+                        repo=repo_name,
+                        version=version,
                         url=release["url"],
                         published=published,
-                        source=repo_name,
                     )
                 )
 
@@ -195,18 +216,34 @@ def is_blog_release(repo_name: str, tag_name: str) -> bool:
     )
 
 
-def render_items(items: Iterable[LinkItem]) -> str:
+def render_releases(items: Iterable[Release]) -> str:
     lines: list[str] = []
-    for item in items:
-        date = item.published.strftime("%Y-%m-%d")
-        title = markdown_escape(item.title)
-        source = f" <small>{item.source}</small>" if item.source else ""
-        lines.append(f"[{title}]({item.url}){source} - {date}")
-    return "<br>\n".join(lines) if lines else "_No recent items found._"
+    for release in items:
+        date = release.published.strftime("%Y-%m-%d")
+        title = html.escape(f"{release.repo} {release.version}")
+        url = html.escape(release.url, quote=True)
+        lines.append(f'<li><a href="{url}">{title}</a><br><small>{date}</small></li>')
+    return render_list(lines)
 
 
-def markdown_escape(value: str) -> str:
-    return value.replace("|", r"\|").replace("[", r"\[").replace("]", r"\]")
+def render_blog_posts(items: Iterable[BlogPost]) -> str:
+    lines: list[str] = []
+    for post in items:
+        date = post.published.strftime("%Y-%m-%d")
+        title = html.escape(post.title)
+        url = html.escape(post.url, quote=True)
+        description = html.escape(post.description or "")
+        description_html = f"<br>{description}" if description else ""
+        lines.append(
+            f'<li><a href="{url}">{title}</a><br><small>{date}</small>{description_html}</li>'
+        )
+    return render_list(lines)
+
+
+def render_list(items: list[str]) -> str:
+    if not items:
+        return "<p><em>No recent items found.</em></p>"
+    return "<ul>\n" + "\n".join(items) + "\n</ul>"
 
 
 def replace_block(readme: str, name: str, content: str) -> str:
@@ -214,7 +251,7 @@ def replace_block(readme: str, name: str, content: str) -> str:
         rf"<!-- {re.escape(name)} starts -->.*?<!-- {re.escape(name)} ends -->",
         re.DOTALL,
     )
-    replacement = f"<!-- {name} starts -->{content}<!-- {name} ends -->"
+    replacement = f"<!-- {name} starts -->\n{content}\n<!-- {name} ends -->"
     updated, count = pattern.subn(replacement, readme)
     if count != 1:
         raise RuntimeError(f"Could not find exactly one README block named {name!r}")
@@ -225,8 +262,8 @@ def main() -> int:
     with open(README_PATH, encoding="utf-8") as readme_file:
         readme = readme_file.read()
 
-    updated = replace_block(readme, "blog", render_items(fetch_blog_posts()))
-    updated = replace_block(updated, "releases", render_items(fetch_releases()))
+    updated = replace_block(readme, "blog", render_blog_posts(fetch_blog_posts()))
+    updated = replace_block(updated, "releases", render_releases(fetch_releases()))
     updated = re.sub(
         r"Last updated automatically by GitHub Actions(?: on \d{4}-\d{2}-\d{2})?\.",
         f"Last updated automatically by GitHub Actions on {utc_now():%Y-%m-%d}.",
