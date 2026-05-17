@@ -25,7 +25,6 @@ BLOG_LIMIT = 5
 RELEASE_LIMIT = 5
 EXCLUDED_BLOG_RELEASE_REPO = "jesseblack.net"
 EXCLUDED_BLOG_RELEASE_TAG_PREFIX = "post/"
-DESCRIPTION_LIMIT = 240
 
 
 @dataclass(frozen=True)
@@ -33,7 +32,6 @@ class BlogPost:
     title: str
     url: str
     published: dt.datetime
-    description: str | None = None
 
 
 @dataclass(frozen=True)
@@ -87,7 +85,6 @@ def fetch_blog_posts() -> list[BlogPost]:
         title = text_of(item, "title")
         link = text_of(item, "link")
         published = text_of(item, "pubDate")
-        description = summarize_description(text_of(item, "description"))
         if not title or not link:
             continue
         posts.append(
@@ -95,7 +92,6 @@ def fetch_blog_posts() -> list[BlogPost]:
                 title=html.unescape(title),
                 url=link,
                 published=parse_datetime(published),
-                description=description,
             )
         )
 
@@ -107,14 +103,6 @@ def text_of(element: ET.Element, tag: str) -> str:
     if child is None or child.text is None:
         return ""
     return child.text.strip()
-
-
-def summarize_description(value: str) -> str:
-    description = re.sub(r"<[^>]+>", " ", html.unescape(value))
-    description = re.sub(r"\s+", " ", description).strip()
-    if len(description) <= DESCRIPTION_LIMIT:
-        return description
-    return description[: DESCRIPTION_LIMIT - 1].rsplit(" ", 1)[0] + "..."
 
 
 def github_graphql(query: str, variables: dict[str, object]) -> dict[str, object]:
@@ -222,7 +210,7 @@ def render_releases(items: Iterable[Release]) -> str:
         date = release.published.strftime("%Y-%m-%d")
         title = html.escape(f"{release.repo} {release.version}")
         url = html.escape(release.url, quote=True)
-        lines.append(f'<p><a href="{url}">{title}</a> <small>{date}</small></p>')
+        lines.append(f'<p><a href="{url}"><strong>{title}</strong></a> ({date})</p>')
     return render_blocks(lines)
 
 
@@ -232,12 +220,7 @@ def render_blog_posts(items: Iterable[BlogPost]) -> str:
         date = post.published.strftime("%Y-%m-%d")
         title = html.escape(post.title)
         url = html.escape(post.url, quote=True)
-        description = html.escape(post.description or "")
-        description_html = f"<br>{description}" if description else ""
-        lines.append(
-            f'<p><a href="{url}"><strong>{title}</strong></a> <small>{date}</small>'
-            f"{description_html}</p>"
-        )
+        lines.append(f'<p><a href="{url}"><strong>{title}</strong></a> ({date})</p>')
     return render_blocks(lines)
 
 
