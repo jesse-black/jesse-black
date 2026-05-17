@@ -222,8 +222,8 @@ def render_releases(items: Iterable[Release]) -> str:
         date = release.published.strftime("%Y-%m-%d")
         title = html.escape(f"{release.repo} {release.version}")
         url = html.escape(release.url, quote=True)
-        lines.append(f'<li><a href="{url}">{title}</a><br><small>{date}</small></li>')
-    return render_list(lines)
+        lines.append(f'<p><a href="{url}">{title}</a> <small>{date}</small></p>')
+    return render_blocks(lines)
 
 
 def render_blog_posts(items: Iterable[BlogPost]) -> str:
@@ -235,15 +235,16 @@ def render_blog_posts(items: Iterable[BlogPost]) -> str:
         description = html.escape(post.description or "")
         description_html = f"<br>{description}" if description else ""
         lines.append(
-            f'<li><a href="{url}">{title}</a><br><small>{date}</small>{description_html}</li>'
+            f'<p><a href="{url}"><strong>{title}</strong></a> <small>{date}</small>'
+            f"{description_html}</p>"
         )
-    return render_list(lines)
+    return render_blocks(lines)
 
 
-def render_list(items: list[str]) -> str:
+def render_blocks(items: list[str]) -> str:
     if not items:
         return "<p><em>No recent items found.</em></p>"
-    return "<ul>\n" + "\n".join(items) + "\n</ul>"
+    return "\n".join(items)
 
 
 def replace_block(readme: str, name: str, content: str) -> str:

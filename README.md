@@ -2,11 +2,8 @@ Currently working on accessible AI communication tools at Vibramind.
 
 <table>
 <tr>
-<th width="33%">Recent releases</th>
-<th width="67%">Recent blog posts</th>
-</tr>
-<tr>
 <td width="33%" valign="top">
+<h3>Recent releases</h3>
 <!-- releases starts -->
 <ul>
 <li><a href="https://github.com/jesse-black/docgarden/releases/tag/v0.1.0">docgarden v0.1.0</a><br><small>2026-05-13</small></li>
@@ -18,6 +15,7 @@ Currently working on accessible AI communication tools at Vibramind.
 <!-- releases ends -->
 </td>
 <td width="67%" valign="top">
+<h3>Recent blog posts</h3>
 <!-- blog starts -->
 <ul>
 <li><a href="https://jesseblack.net/blog/code-coverage-in-agentic-engineering/">Code Coverage in Agentic Engineering</a><br><small>2026-05-16</small><br>Coding agents make it easy to generate tests, but chasing 100% line coverage can waste tokens, churn out low-value tests, and distort code. Here’s how I use diff coverage, targeted metrics, and review guardrails to keep coverage useful.</li>
