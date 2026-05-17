@@ -1,6 +1,6 @@
 Currently working on accessible AI communication tools at Vibramind.
 
-<table>
+<table width="100%">
 <tr>
 <td width="33%" valign="top">
 <h3>Recent releases</h3>
