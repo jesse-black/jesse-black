@@ -11,7 +11,6 @@ import os
 import re
 import sys
 import urllib.error
-import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -24,7 +23,6 @@ README_PATH = "README.md"
 BLOG_LIMIT = 5
 RELEASE_LIMIT = 5
 EXCLUDED_BLOG_RELEASE_REPO = "jesseblack.net"
-EXCLUDED_BLOG_RELEASE_TAG_PREFIX = "post/"
 
 
 @dataclass(frozen=True)
@@ -173,7 +171,7 @@ def fetch_releases() -> list[Release]:
         for repo in repositories["nodes"]:
             repo_name = repo["name"]
             for release in repo["releases"]["nodes"]:
-                if is_blog_release(repo_name, release.get("tagName") or ""):
+                if is_blog_release(repo_name):
                     continue
                 version = release.get("tagName") or release.get("name")
                 if not version:
@@ -196,12 +194,8 @@ def fetch_releases() -> list[Release]:
     return sorted(releases, key=lambda release: release.published, reverse=True)[:RELEASE_LIMIT]
 
 
-def is_blog_release(repo_name: str, tag_name: str) -> bool:
-    decoded_tag = urllib.parse.unquote(tag_name)
-    return (
-        repo_name == EXCLUDED_BLOG_RELEASE_REPO
-        and decoded_tag.startswith(EXCLUDED_BLOG_RELEASE_TAG_PREFIX)
-    )
+def is_blog_release(repo_name: str) -> bool:
+    return repo_name == EXCLUDED_BLOG_RELEASE_REPO
 
 
 def render_releases(items: Iterable[Release]) -> str:
