@@ -15,7 +15,7 @@ Currently working on accessible AI communication tools at Vibramind.
 <td valign="top">
 <h3>Recent blog posts</h3>
 <!-- blog starts -->
-<p><a href="https://jesseblack.net/blog/code-coverage-in-agentic-engineering/"><strong>Code Coverage in Agentic Engineering</strong></a> (2026-05-16)</p>
+<p><a href="https://jesseblack.net/blog/code-coverage-in-agentic-engineering/"><strong>Code Coverage in Agentic Engineering</strong></a> (2026-05-17)</p>
 <!-- blog ends -->
 </td>
 </tr>
